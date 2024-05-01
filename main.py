@@ -32,9 +32,11 @@ table_input = "INSERT INTO tracker (vehicle, date, mileage, litres, cost, curren
 distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
 import_file_name = ''
 row = []
+menu_running = True
+menu_option = ''
 
 def print_tracker():
-    print('tracker contains:')
+    print('\nTracker contains:')
     for line in cursor.execute('SELECT * FROM tracker'):
         print(line)
 
@@ -149,42 +151,66 @@ def new_input_tracker():
     currency_output = 'GBP'
 
 def import_csv():
-    print('Enter file.csv to import:')
+    print('\nEnter file.csv to import:')
     import_file_name = input()
+
     try:
-        with open(import_file_name, newline='') as csv_file:
-            file = csv.reader(csv_file)
-            vehicle_output = import_file_name.split('.')[0]
-            try:
-                for row in file:
-                    output_line = []
-                    date_output = str(datetime.strptime(row[0], "%d/%m/%y").date())
-                    mileage_output = row[1].strip('pP')
-                    litres_input_split = row[3].split('.')
-                    if len(litres_input_split) == 1:
-                        litres_output = int(litres_input_split[0]) * 100
-                    elif len(row[2].split('.')[1]) == 1:
-                        litres_output = (int(litres_input_split[0]) * 100) + (int(litres_input_split[1]) * 10)
-                    else:
-                        litres_output = (int(litres_input_split[0]) * 100) + int(litres_input_split[1])
-                    cost_input_split = row[2].split('.')
-                    if len(cost_input_split) == 1:
-                        cost_output = int(cost_input_split[0]) * 100
-                    elif len(row[2].split('.')[1]) == 1:
-                        cost_output = (int(cost_input_split[0]) * 100) + (int(cost_input_split[1]) * 10)
-                    else:
-                        cost_output = (int(cost_input_split[0]) * 100) + int(cost_input_split[1])
-
-                    output_line = [vehicle_output, date_output, mileage_output, litres_output, cost_output, currency_output]
-                    
-                    cursor.execute(table_input, output_line)
-            except:
-                print('File format invalid, failed row:')
-                print(row)
-    except :
+        csv_file = open(import_file_name, newline='')
+        file = csv.reader(csv_file)
+    except:
         print("File not found")
+        return
+    
+    vehicle_output = import_file_name.split('.')[0]
+    output_line = []
+    print('\nData added:')
+    
+    try:
+        for row in file:
+            date_output = str(datetime.strptime(row[0], "%d/%m/%y").date())
+            mileage_output = row[1].strip('p')
 
-print_tracker()
+            try:
+                litres_input_split = row[3].split('.')
+                if len(row[3].split('.')[1]) == 1:
+                    litres_output = (int(litres_input_split[0]) * 100) + (int(litres_input_split[1]) * 10)
+                else:
+                    litres_output = (int(litres_input_split[0]) * 100) + int(litres_input_split[1])
+            except:
+                litres_output = int(row[3]) * 100
+
+            try:
+                cost_input_split = row[2].split('.')
+                if len(row[2].split('.')[1]) == 1:
+                    cost_output = (int(cost_input_split[0]) * 100) + (int(cost_input_split[1]) * 10)
+                else:
+                    cost_output = (int(cost_input_split[0]) * 100) + int(cost_input_split[1])
+            except:
+                cost_output = int(row[2]) * 100
+
+            output_line = [vehicle_output, date_output, mileage_output, litres_output, cost_output, currency_output]
+            cursor.execute(table_input, output_line)
+            print(output_line)
+    except:
+        print('File format invalid, failed row:')
+        print(row)
+        return
+    csv_file.close()
+
+while menu_running:
+    print('\nOptions (p)rint table, (i)mport csv, (n)ew entry, (e)xit:')
+    menu_option = input().lower()
+
+    if menu_option == 'p':
+        print_tracker()
+    elif menu_option == 'i':
+        import_csv()
+    elif menu_option == 'n':
+        new_input_tracker()
+    elif menu_option == 'e':
+        menu_running = False
+
+print('\nBye Bye')
 
 con.commit()
 con.close()
