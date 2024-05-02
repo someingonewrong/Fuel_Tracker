@@ -29,7 +29,7 @@ cost = 0
 p_cost = 0
 output_line = []
 table_input = "INSERT INTO tracker (vehicle, date, mileage, litres, cost, currency) VALUES (?,?,?,?,?,?)"
-distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
+distinct_vehicles = []
 import_file_name = ''
 row = []
 menu_running = True
@@ -41,6 +41,7 @@ def print_tracker():
         print(line)
 
 def new_input_tracker():
+    distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
     for item in distinct_vehicles:
         vehicles.append(item[0])
 
@@ -164,7 +165,7 @@ def import_csv():
     vehicle_output = import_file_name.split('.')[0]
     output_line = []
     print('\nData added:')
-    
+
     try:
         for row in file:
             date_output = str(datetime.strptime(row[0], "%d/%m/%y").date())
@@ -197,8 +198,26 @@ def import_csv():
         return
     csv_file.close()
 
+def sql_input():
+    print('\nEnter SQL line:')
+    sql_input = input()
+    if_continue = True
+
+    try:
+        # print(cursor.execute(sql_input))
+        for line in cursor.execute(sql_input):
+            print(line)
+            if_continue = False
+    except: pass
+    try:
+        if if_continue == True:
+            cursor.execute(sql_input)
+    except:
+        print('Error')
+        return
+
 while menu_running:
-    print('\nOptions (p)rint table, (i)mport csv, (n)ew entry, (e)xit:')
+    print('\nOptions (p)rint table, (i)mport csv, (n)ew entry, (s)ql query, (e)xit:')
     menu_option = input().lower()
 
     if menu_option == 'p':
@@ -207,6 +226,8 @@ while menu_running:
         import_csv()
     elif menu_option == 'n':
         new_input_tracker()
+    elif menu_option == 's':
+        sql_input()
     elif menu_option == 'e':
         menu_running = False
 
