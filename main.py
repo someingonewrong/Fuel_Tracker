@@ -10,7 +10,7 @@ class Record:
         self.mileage = mileage
         self.litres = litres
         self.cost = cost
-        currency = currency
+        self.currency = currency
 
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
