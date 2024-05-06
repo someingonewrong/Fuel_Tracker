@@ -36,22 +36,67 @@ menu_running = True
 menu_option = ''
 
 def print_tracker():
+    vehicles = []
+    distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
+    vehicle = "\nSelect which vehicle to display"
+    columns = []
+    sql_add = ' WHERE'
+    sql_fetch = 'SELECT '
+    for item in distinct_vehicles:
+        vehicle += ', ' + item[0].upper()
+        vehicles.append(item[0])
+    vehicle += ' or \'*\' for all:'
+
+    print(vehicle)
+    vehicle_input = input().lower().replace(' ','').split(',')
+
+    for item in vehicle_input:
+        if item in vehicles:
+            sql_add += ' vehicle = \'' + item + '\' OR'
+        elif item == '*': sql_add = ''
+        else:
+            print('Invalid input')
+            return
+    sql_add = sql_add.strip('OR')
+
+    output = 'Select which columns to display '
+    for item in list(cursor.execute("SELECT name FROM pragma_table_info('tracker')")):
+        columns.append(item[0])
+        output += item[0].upper() + ', '
+    output += "or '*' for all:"
+
+    print(output)
+    coloumn_input = input().lower().replace(' ','').split(',')
+
+    for item in coloumn_input:
+        if item in columns or item == '*':
+            sql_fetch += item + ', '
+        else:
+            print('Invalid column')
+            return
+    sql_fetch = sql_fetch.strip(', ') + ' FROM tracker' + sql_add
+    
+    print('E')
+
     print('\nTracker contains:')
-    for line in cursor.execute('SELECT * FROM tracker'):
+    for line in cursor.execute(sql_fetch):
         print(line)
 
 def new_input_tracker():
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
+    mileage_last = 0
+    vehicle_new = False
+    currency_output = 'GBP'
     for item in distinct_vehicles:
         vehicles.append(item[0])
 
     if len(vehicles) == 0 :
-        vehicle = "Enter new vehicle: "
+        vehicle = "\nEnter new vehicle: "
         vehicle_new = True
     else:
-        vehicle = "Please select from vehicles in table already"
+        vehicle = "\nPlease select from vehicles in table already"
         for item in vehicles:
-            vehicle += ', ' + item.title()
+            vehicle += ', ' + item.upper()
         vehicle += ' or enter NEW to add a new vehicle:'
 
     print(vehicle)
@@ -65,46 +110,46 @@ def new_input_tracker():
         print('here 2')
     else:
         print('Invalid input')
-        exit()
+        return
 
-    if vehicle_new == True:
+    if vehicle_new:
         print('Enter new vehicle: ')
         vehicle_output = input().lower()
+        print('Enter mileage:')
     else:
         vehicle_output = vehicle_input
 
     if vehicle_new == False:
         mileage_last = cursor.execute("SELECT mileage FROM tracker WHERE vehicle = '{}' ORDER BY mileage DESC LIMIT 1".format(vehicle_input)).fetchone()[0]
+        print('Enter mileage, last milage for {} is {}:'.format(vehicle_output, mileage_last))
 
-    print('Enter mileage, last milage for {} is {}:'.format(vehicle_output, mileage_last))
     try:
-        mileage_input = int(input())
-        mileage_output = mileage_input
+        mileage_output = int(input())
     except:
         print('Not integer')
-        exit()
+        return
 
-    if mileage_input < mileage_last:
+    if mileage_output < mileage_last:
         print('New mileage cannot be smaller than last mileage.')
-        exit()
+        return
 
     print('Enter litres of fuel (must be 0.00):')
     litres_input_split = input().split('.')
 
     if len(litres_input_split) != 2:
         print('Incorrect format')
-        exit()
+        return
 
     try:
         litres = int(litres_input_split[0])
         c_litres = int(litres_input_split[1])
     except:
         print('incorrect format')
-        exit()
+        return
 
     if len(litres_input_split[1]) != 2 or litres < 0 or c_litres < 0:
         print('Incorrect format')
-        exit()
+        return
 
     litres_output = (litres * 100) + c_litres
 
@@ -119,18 +164,18 @@ def new_input_tracker():
 
     if len(cost_input) != 2:
         print('Incorrect format, valid currencies ' + str(currency_list))
-        exit()
+        return
 
     try:
         cost = int(cost_input[0])
         p_cost = int(cost_input[1])
     except:
         print('incorrect format')
-        exit()
+        return
 
     if len(cost_input[1]) != 2 or cost < 0 or p_cost < 0:
         print('Incorrect format')
-        exit()
+        return
 
     cost_output = (cost * 100) + p_cost
 
@@ -149,7 +194,6 @@ def new_input_tracker():
     output_line.append(currency_output)
 
     cursor.execute(table_input, output_line)
-    currency_output = 'GBP'
 
 def import_csv():
     print('\nEnter file.csv to import:')
@@ -217,10 +261,10 @@ def sql_input():
         return
 
 while menu_running:
-    print('\nOptions (p)rint table, (i)mport csv, (n)ew entry, (s)ql query, (e)xit:')
+    print('\nOptions (r)ead table, (i)mport csv, (n)ew entry, (s)ql query, (e)xit:')
     menu_option = input().lower()
 
-    if menu_option == 'p':
+    if menu_option == 'r':
         print_tracker()
     elif menu_option == 'i':
         import_csv()
