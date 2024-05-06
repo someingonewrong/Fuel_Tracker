@@ -3,8 +3,18 @@ import csv
 from datetime import date
 from datetime import datetime
 
+class Record:
+    def __init__(vehicle, date, mileage, litres, cost, currency):
+        self.vehicle = vehicle
+        self.date = date
+        self.mileage = mileage
+        self.litres = litres
+        self.cost = cost
+        self.currency = currency
+
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
+
 
 cursor.execute("CREATE TABLE IF NOT EXISTS tracker (id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle TEXT, date DATE, mileage INTEGER, litres INTEGER, cost INTEGER, currency TEXT)")
 # Create table tracker within data base
