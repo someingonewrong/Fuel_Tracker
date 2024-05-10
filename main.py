@@ -21,7 +21,6 @@ class Record:
         con.commit()
         con.close()
 
-
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
 
@@ -60,6 +59,22 @@ import_file_name = ''
 row = []
 menu_running = True
 menu_option = ''
+
+def int_convert(input):
+    input_split = input.split('.')
+    if len(input_split) > 2 or int(input_split[0]) < 0:
+        raise
+    try:
+        output = int(input_split[0]) * 100
+        if len(input_split[1]) == 1:
+            output += int(input_split[1]) * 10
+        elif int(input_split[1]) < 0: raise
+        else:
+            output += int(input_split[1])
+    except:
+        try: output = int(input) * 100
+        except: raise
+    return output
 
 def print_tracker():
     vehicles = []
@@ -103,8 +118,11 @@ def print_tracker():
               str(line[5]) + '\t' + 
               str(line[6]))
 
+
+
 def new_input_tracker():
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
+    vehicles = []
     mileage_last = 0
     vehicle_new = False
     currency_output = 'GBP'
@@ -151,50 +169,27 @@ def new_input_tracker():
         return
 
     print('Enter litres of fuel (must be 0.00):')
-    litres_input_split = input().split('.')
-
-    if len(litres_input_split) != 2:
-        print('Incorrect format')
-        return
+    litres_input = input()
 
     try:
-        litres = int(litres_input_split[0])
-        c_litres = int(litres_input_split[1])
+        litres_output = int_convert(litres_input)
     except:
         print('incorrect format')
         return
-
-    if len(litres_input_split[1]) != 2 or litres < 0 or c_litres < 0:
-        print('Incorrect format')
-        return
-
-    litres_output = (litres * 100) + c_litres
-
 
     print('Enter cost of fuel or currency code if not GBP:')
-    cost_input = input().split('.')
+    cost_input = input()
 
-    if cost_input[0].upper() in currency_list:
-        currency_output = cost_input[0].upper()
+    if cost_input.upper() in currency_list:
+        currency_output = cost_input.upper()
         print('Enter cost of fuel:')
-        cost_input = input().split('.')
-
-    if len(cost_input) != 2:
-        print('Incorrect format, valid currencies ' + str(currency_list))
-        return
+        cost_input = input()
 
     try:
-        cost = int(cost_input[0])
-        p_cost = int(cost_input[1])
+        cost_output = int_convert(cost_input)
     except:
-        print('incorrect format')
+        print('Incorrect format, valid currencies ' + str(currency_list))
         return
-
-    if len(cost_input[1]) != 2 or cost < 0 or p_cost < 0:
-        print('Incorrect format')
-        return
-
-    cost_output = (cost * 100) + p_cost
 
     record = Record(vehicle_output, today, mileage_output, litres_output, cost_output, currency_output)
     record.insert_record()
@@ -226,27 +221,13 @@ def import_csv():
             date_output = str(datetime.strptime(row[0], "%d/%m/%y").date())
             mileage_output = row[1].strip('p')
             currency_output = 'GBP'
+            litres_output = int_convert(row[3])
 
-            try:
-                litres_input_split = row[3].split('.')
-                if len(row[3].split('.')[1]) == 1:
-                    litres_output = (int(litres_input_split[0]) * 100) + (int(litres_input_split[1]) * 10)
-                else:
-                    litres_output = (int(litres_input_split[0]) * 100) + int(litres_input_split[1])
-            except:
-                litres_output = int(row[3]) * 100
-
-            try:
-                cost_input_split = row[2].split('.')
-                if cost_input_split[0].startswith('€'):
-                    currency_output = 'EUR'
-                    cost_input_split[0] = cost_input_split[0].strip('€')
-                if len(row[2].split('.')[1]) == 1:
-                    cost_output = (int(cost_input_split[0]) * 100) + (int(cost_input_split[1]) * 10)
-                else:
-                    cost_output = (int(cost_input_split[0]) * 100) + int(cost_input_split[1])
-            except:
-                cost_output = int(row[2]) * 100
+            if row[2].startswith('€'):
+                currency_output = 'EUR'
+                row[2] = row[2].strip('€')
+            
+            cost_output = int_convert(row[2])
 
             record = Record(vehicle_output, date_output, mileage_output, litres_output, cost_output, currency_output)
             record.insert_record()
