@@ -4,7 +4,7 @@ from datetime import date
 from datetime import datetime
 
 class Record:
-    def __init__(vehicle, date, mileage, litres, cost, currency):
+    def __init__(self, vehicle, date, mileage, litres, cost, currency):
         self.vehicle = vehicle
         self.date = date
         self.mileage = mileage
@@ -12,11 +12,28 @@ class Record:
         self.cost = cost
         self.currency = currency
 
+    def insert_record(self):
+        table_input = "INSERT INTO tracker (vehicle, date, mileage, litres, cost, currency) VALUES (?,?,?,?,?,?)"
+        inputs = [self.vehicle, self.date, self.mileage, self.litres, self.cost, self.currency]
+
+        con = sqlite3.connect("fuel_tracker.db")
+        con.execute(table_input, inputs)
+        con.commit()
+        con.close()
+
+
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
 
 
-cursor.execute("CREATE TABLE IF NOT EXISTS tracker (id INTEGER PRIMARY KEY AUTOINCREMENT, vehicle TEXT, date DATE, mileage INTEGER, litres INTEGER, cost INTEGER, currency TEXT)")
+cursor.execute("""CREATE TABLE IF NOT EXISTS tracker 
+               (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+               vehicle TEXT, 
+               date DATE, 
+               mileage INTEGER, 
+               litres INTEGER, 
+               cost INTEGER, 
+               currency TEXT)""")
 # Create table tracker within data base
 
 today = date.today()
@@ -38,7 +55,6 @@ cost_input_split = []
 cost = 0
 p_cost = 0
 output_line = []
-table_input = "INSERT INTO tracker (vehicle, date, mileage, litres, cost, currency) VALUES (?,?,?,?,?,?)"
 distinct_vehicles = []
 import_file_name = ''
 row = []
@@ -49,48 +65,43 @@ def print_tracker():
     vehicles = []
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
     vehicle = "\nSelect which vehicle to display"
-    columns = []
-    sql_add = ' WHERE'
-    sql_fetch = 'SELECT '
+    sql_fetch = 'SELECT * FROM tracker '
     for item in distinct_vehicles:
         vehicle += ', ' + item[0].upper()
         vehicles.append(item[0])
-    vehicle += ' or \'*\' for all:'
+    vehicle += ' or Enter for all:'
 
     print(vehicle)
-    vehicle_input = input().lower().replace(' ','').split(',')
+    vehicle_input = input().lower()
 
-    for item in vehicle_input:
-        if item in vehicles:
-            sql_add += ' vehicle = \'' + item + '\' OR'
-        elif item == '*': sql_add = ''
-        else:
-            print('Invalid input')
-            return
-    sql_add = sql_add.strip('OR')
+    if vehicle_input in vehicles:
+        sql_fetch += 'WHERE vehicle = \'' + vehicle_input + '\''
 
-    output = 'Select which columns to display '
-    for item in list(cursor.execute("SELECT name FROM pragma_table_info('tracker')")):
-        columns.append(item[0])
-        output += item[0].upper() + ', '
-    output += "or '*' for all:"
+    print('Order by (v)ehicle, (d)ate (m)ileage, (l)itres, (c)ost, (cu)rrency or Enter to order by id:')
+    order_input = input().lower()
 
-    print(output)
-    coloumn_input = input().lower().replace(' ','').split(',')
-
-    for item in coloumn_input:
-        if item in columns or item == '*':
-            sql_fetch += item + ', '
-        else:
-            print('Invalid column')
-            return
-    sql_fetch = sql_fetch.strip(', ') + ' FROM tracker' + sql_add
-    
-    print('E')
+    if order_input == 'v':
+        sql_fetch += ' ORDER BY vehicle'
+    if order_input == 'd':
+        sql_fetch += ' ORDER BY date'
+    if order_input == 'm':
+        sql_fetch += ' ORDER BY mileage'
+    if order_input == 'l':
+        sql_fetch += ' ORDER BY litres'
+    if order_input == 'c':
+        sql_fetch += ' ORDER BY cost'
+    if order_input == 'cu':
+        sql_fetch += ' ORDER BY currency'
 
     print('\nTracker contains:')
     for line in cursor.execute(sql_fetch):
-        print(line)
+        print(str(line[0]) + '\t' + 
+              str(line[1]) + '\t' + 
+              str(line[2]) + '\t' + 
+              str(line[3]) + '\t' + 
+              str(line[4]) + '\t' + 
+              str(line[5]) + '\t' + 
+              str(line[6]))
 
 def new_input_tracker():
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
@@ -112,12 +123,8 @@ def new_input_tracker():
     print(vehicle)
     vehicle_input = input().lower()
 
-    if vehicle_input in vehicles or len(vehicles) == 0:
-        print('here')
-        pass
-    elif vehicle_input == 'new':
-        vehicle_new = True
-        print('here 2')
+    if vehicle_input in vehicles or len(vehicles) == 0: pass
+    elif vehicle_input == 'new': vehicle_new = True
     else:
         print('Invalid input')
         return
@@ -189,21 +196,16 @@ def new_input_tracker():
 
     cost_output = (cost * 100) + p_cost
 
-    print('\nInputting:')
-    print('Vehicle  - ', vehicle_output)
-    output_line.append(vehicle_output)
-    print('Date     - ', today)
-    output_line.append(today)
-    print('Mileage  - ', mileage_output)
-    output_line.append(mileage_output)
-    print('Litres   - ', litres_output)
-    output_line.append(litres_output)
-    print('Cost     - ', cost_output)
-    output_line.append(cost_output)
-    print('Currency - ', currency_output)
-    output_line.append(currency_output)
+    record = Record(vehicle_output, today, mileage_output, litres_output, cost_output, currency_output)
+    record.insert_record()
 
-    cursor.execute(table_input, output_line)
+    print('\nInputting:')
+    print('Vehicle  - ', record.vehicle)
+    print('Date     - ', record.date)
+    print('Mileage  - ', record.mileage)
+    print('Litres   - ', record.litres)
+    print('Cost     - ', record.cost)
+    print('Currency - ', record.currency)
 
 def import_csv():
     print('\nEnter file.csv to import:')
@@ -217,13 +219,13 @@ def import_csv():
         return
     
     vehicle_output = import_file_name.split('.')[0]
-    output_line = []
     print('\nData added:')
 
     try:
         for row in file:
             date_output = str(datetime.strptime(row[0], "%d/%m/%y").date())
             mileage_output = row[1].strip('p')
+            currency_output = 'GBP'
 
             try:
                 litres_input_split = row[3].split('.')
@@ -236,6 +238,9 @@ def import_csv():
 
             try:
                 cost_input_split = row[2].split('.')
+                if cost_input_split[0].startswith('€'):
+                    currency_output = 'EUR'
+                    cost_input_split[0] = cost_input_split[0].strip('€')
                 if len(row[2].split('.')[1]) == 1:
                     cost_output = (int(cost_input_split[0]) * 100) + (int(cost_input_split[1]) * 10)
                 else:
@@ -243,9 +248,14 @@ def import_csv():
             except:
                 cost_output = int(row[2]) * 100
 
-            output_line = [vehicle_output, date_output, mileage_output, litres_output, cost_output, currency_output]
-            cursor.execute(table_input, output_line)
-            print(output_line)
+            record = Record(vehicle_output, date_output, mileage_output, litres_output, cost_output, currency_output)
+            record.insert_record()
+            print(record.vehicle + '\t' + 
+                  record.date + '\t' + 
+                  str(record.mileage) + '\t' + 
+                  str(record.litres) + '\t' + 
+                  str(record.cost) + '\t' + 
+                  record.currency)
     except:
         print('File format invalid, failed row:')
         print(row)
@@ -255,20 +265,19 @@ def import_csv():
 def sql_input():
     print('\nEnter SQL line:')
     sql_input = input()
-    if_continue = True
 
     try:
-        # print(cursor.execute(sql_input))
-        for line in cursor.execute(sql_input):
+        list = cursor.execute(sql_input)
+        for line in list:
             print(line)
-            if_continue = False
-    except: pass
-    try:
-        if if_continue == True:
-            cursor.execute(sql_input)
     except:
-        print('Error')
-        return
+        try:
+            cursor.execute(sql_input)
+        except:
+            print('Query failed')
+            return
+    
+    print('\nQuery successful')
 
 while menu_running:
     print('\nOptions (r)ead table, (i)mport csv, (n)ew entry, (s)ql query, (e)xit:')
