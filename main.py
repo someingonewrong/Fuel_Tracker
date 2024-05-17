@@ -3,6 +3,13 @@ import csv
 from datetime import date
 from datetime import datetime
 
+
+# check if vehicle valid
+# check date is valid or fetch today
+# check if mileage higher or valid
+# check litres are valid
+# check if cost valid or is curreny
+
 class Record:
     def __init__(self, vehicle, date, mileage, litres, cost, currency):
         self.vehicle = vehicle
@@ -46,17 +53,8 @@ vehicle_output = ''
 mileage_last = 0
 mileage_output = 0
 litres_output = 0
-litres_input_split = []
-litres = 0
-c_litres = 0
 cost_output = 0
-cost_input_split = []
-cost = 0
-p_cost = 0
-output_line = []
 distinct_vehicles = []
-import_file_name = ''
-row = []
 menu_running = True
 menu_option = ''
 
@@ -92,31 +90,77 @@ def print_tracker():
     if vehicle_input in vehicles:
         sql_fetch += 'WHERE vehicle = \'' + vehicle_input + '\''
 
-    print('Order by (v)ehicle, (d)ate (m)ileage, (l)itres, (c)ost, (cu)rrency or Enter to order by id:')
-    order_input = input().lower()
+    # print('Order by (v)ehicle, (d)ate (m)ileage, (l)itres, (c)ost, (cu)rrency or Enter to order by id:')
+    # order_input = input().lower()
 
-    if order_input == 'v':
-        sql_fetch += ' ORDER BY vehicle'
-    if order_input == 'd':
-        sql_fetch += ' ORDER BY date'
-    if order_input == 'm':
-        sql_fetch += ' ORDER BY mileage'
-    if order_input == 'l':
-        sql_fetch += ' ORDER BY litres'
-    if order_input == 'c':
-        sql_fetch += ' ORDER BY cost'
-    if order_input == 'cu':
-        sql_fetch += ' ORDER BY currency'
+    # if order_input == 'v':
+    #     sql_fetch += ' ORDER BY vehicle'
+    # if order_input == 'd':
+    #     sql_fetch += ' ORDER BY date'
+    # if order_input == 'm':
+    #     sql_fetch += ' ORDER BY mileage'
+    # if order_input == 'l':
+    #     sql_fetch += ' ORDER BY litres'
+    # if order_input == 'c':
+    #     sql_fetch += ' ORDER BY cost'
+    # if order_input == 'cu':
+    #     sql_fetch += ' ORDER BY currency'
+
+    litres_total = 0
+    cost_total = 0
+    fuel_price_average = 0
+    lines = 0
+    veh_current = ''
+    veh_previous = ''
+    mileage_current = 0
+    mileage_previous = 0
+    mileage_diff = 0
+    mpg = 0
+    
 
     print('\nTracker contains:')
     for line in cursor.execute(sql_fetch):
-        print(str(line[0]) + '\t' + 
-              str(line[1]) + '\t' + 
-              str(line[2]) + '\t' + 
-              str(line[3]) + '\t' + 
-              str(line[4]) + '\t' + 
-              str(line[5]) + '\t' + 
-              str(line[6]))
+        try: fuel_price = round((int(line[5])/int(line[4])), 2)
+        except: fuel_price = 0
+
+        veh_previous = veh_current
+        veh_current = str(line[1])
+        mileage_previous = mileage_current
+        mileage_current = int(line[3])
+        mileage_diff = mileage_current - mileage_previous
+        litres_total += int(line[4])
+        cost_total += int(line[5])
+        fuel_price_average += fuel_price
+        lines += 1
+
+        if veh_current == veh_previous:
+            gallons = int(line[4]) / 454.609
+            mpg = mileage_diff / gallons
+
+            print(str(line[0]) + '\t' + 
+                  str(line[1]) + '\t' + 
+                  str(line[2]) + '\t' + 
+                  str(line[3]) + '\t' + 
+                  str(round((line[4]/100), 2)) + '\t' + 
+                  str(round((line[5]/100), 2)) + '\t' + 
+                  str(line[6]) + '\t' + 
+                  str(fuel_price) + '\t' + 
+                  str(round(mpg, 2)))
+        else:
+            print(str(line[0]) + '\t' + 
+                  str(line[1]) + '\t' + 
+                  str(line[2]) + '\t' + 
+                  str(line[3]) + '\t' + 
+                  str(round((line[4]/100), 2)) + '\t' + 
+                  str(round((line[5]/100), 2)) + '\t' + 
+                  str(line[6]) + '\t' + 
+                  str(fuel_price))
+    
+    litres_total = litres_total / 100
+    cost_total = cost_total / 100
+    fuel_price_average = round((fuel_price_average / lines), 2)
+
+    print('Total: \t\t\t\t\t' + str(litres_total) + '\t' + str(cost_total) + '\t\t' + str(fuel_price_average))
 
 
 
