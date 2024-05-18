@@ -2,6 +2,8 @@ import sqlite3
 import csv
 from datetime import date
 from datetime import datetime
+from matplotlib import pyplot as plt
+import numpy as np
 
 
 # check if vehicle valid
@@ -74,6 +76,25 @@ def int_convert(input):
         except: raise
     return output
 
+def draw_graph(sql_line):
+    y = []
+    x = []
+    current = ''
+    previous = ''
+    sql_line += ' ORDER BY date'
+    for line in cursor.execute(sql_line):
+        previous = current
+        current = line[1]
+        if current == previous:
+            x.append(line[2])
+            y.append(round((int(line[5])/int(line[4])), 2))
+    
+    plt.xlabel("fuel ppl")
+    plt.ylabel("date")
+    plt.title('Fuel price over time')
+    plt.plot(x, y)
+
+
 def print_tracker():
     vehicles = []
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
@@ -89,22 +110,7 @@ def print_tracker():
 
     if vehicle_input in vehicles:
         sql_fetch += 'WHERE vehicle = \'' + vehicle_input + '\''
-
-    # print('Order by (v)ehicle, (d)ate (m)ileage, (l)itres, (c)ost, (cu)rrency or Enter to order by id:')
-    # order_input = input().lower()
-
-    # if order_input == 'v':
-    #     sql_fetch += ' ORDER BY vehicle'
-    # if order_input == 'd':
-    #     sql_fetch += ' ORDER BY date'
-    # if order_input == 'm':
-    #     sql_fetch += ' ORDER BY mileage'
-    # if order_input == 'l':
-    #     sql_fetch += ' ORDER BY litres'
-    # if order_input == 'c':
-    #     sql_fetch += ' ORDER BY cost'
-    # if order_input == 'cu':
-    #     sql_fetch += ' ORDER BY currency'
+        draw_graph(sql_fetch)
 
     litres_total = 0
     cost_total = 0
