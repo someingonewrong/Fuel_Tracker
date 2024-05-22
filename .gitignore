@@ -1,2 +1,4 @@
 *.db
 *.csv
+ecb_*.zip
+test.py

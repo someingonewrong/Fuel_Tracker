@@ -361,7 +361,6 @@ while menu_running:
     menu_option = input().lower()
 
     if menu_option == 'r':
-        update_ecb_file()
         print_tracker(update_ecb_file())
     elif menu_option == 'i':
         import_csv()
