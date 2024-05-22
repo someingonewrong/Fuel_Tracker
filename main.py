@@ -3,6 +3,8 @@ import csv
 from datetime import date
 from datetime import datetime
 import os.path as op
+from os import remove
+import glob
 import urllib.request
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
@@ -37,12 +39,6 @@ class Record:
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
 
-filename = f"ecb_{date.today():%Y%m%d}.zip"
-if not op.isfile(filename):
-    urllib.request.urlretrieve(ECB_URL, filename)
-c = CurrencyConverter('ecb_20240522.zip', fallback_on_missing_rate=True, fallback_on_wrong_date=True,fallback_on_missing_rate_method='linear_interpolation')
-
-
 cursor.execute("""CREATE TABLE IF NOT EXISTS tracker 
                (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                vehicle TEXT, 
@@ -69,6 +65,24 @@ distinct_vehicles = []
 menu_running = True
 menu_option = ''
 
+def update_ecb_file():
+    filename = f"ecb_{date.today():%Y%m%d}.zip"
+
+    if not op.isfile(filename):
+        file_names = glob.glob('ecb_*.zip', recursive=True)
+        for file in file_names:
+            remove(file)
+        print('\nUpdating converter file...')
+        try:
+            urllib.request.urlretrieve(ECB_URL, filename)
+            print('File updated')
+        except: pass
+
+    try: 
+        c = CurrencyConverter(filename, fallback_on_missing_rate=True)
+        return c
+    except: print('Currency Converter faild to download, Read Table will not work without')
+
 def int_convert(input):
     input_split = input.split('.')
     if len(input_split) > 2 or int(input_split[0]) < 0:
@@ -85,7 +99,7 @@ def int_convert(input):
         except: raise
     return output
 
-def draw_graph(sql_line):
+def draw_graph(sql_line, c):
     y = []
     x = []
     sql_line += ' ORDER BY date'
@@ -94,7 +108,10 @@ def draw_graph(sql_line):
     for line in cursor.execute(sql_line):
         try:
             if int(line[5]) != 0:
-                y.append(round((int(line[5])/int(line[4])), 2))
+                if line[6] != 'GBP':
+                    converted = c.convert(int(line[5]), line[6], 'GBP', date=datetime.strptime(line[2], '%Y-%m-%d'))
+                    y.append(round((int(converted)/int(line[4])), 2))
+                else: y.append(round((int(line[5])/int(line[4])), 2))
                 x.append(line[2])
         except: pass
     
@@ -105,7 +122,7 @@ def draw_graph(sql_line):
     plt.show()
 
 
-def print_tracker():
+def print_tracker(c):
     vehicles = []
     distinct_vehicles = list(cursor.execute("SELECT DISTINCT vehicle FROM tracker"))
     vehicle = "\nSelect which vehicle to display"
@@ -196,7 +213,7 @@ def print_tracker():
     fuel_price_average = round((fuel_price_average / lines), 2)
 
     print('Total: \t\t\t\t\t' + str(litres_total) + '\t' + str(cost_total) + '\t\t' + str(fuel_price_average))
-    draw_graph(sql_fetch)
+    draw_graph(sql_fetch, c)
 
 
 def new_input_tracker():
@@ -344,7 +361,8 @@ while menu_running:
     menu_option = input().lower()
 
     if menu_option == 'r':
-        print_tracker()
+        update_ecb_file()
+        print_tracker(update_ecb_file())
     elif menu_option == 'i':
         import_csv()
     elif menu_option == 'n':
