@@ -2,8 +2,12 @@ import sqlite3
 import csv
 from datetime import date
 from datetime import datetime
+import os.path as op
+import urllib.request
 from matplotlib import pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
+from currency_converter import ECB_URL, CurrencyConverter
 
 
 # check if vehicle valid
@@ -32,6 +36,11 @@ class Record:
 
 con = sqlite3.connect("fuel_tracker.db")  #connect to the database
 cursor = con.cursor()
+
+filename = f"ecb_{date.today():%Y%m%d}.zip"
+if not op.isfile(filename):
+    urllib.request.urlretrieve(ECB_URL, filename)
+c = CurrencyConverter('ecb_20240522.zip', fallback_on_missing_rate=True, fallback_on_wrong_date=True,fallback_on_missing_rate_method='linear_interpolation')
 
 
 cursor.execute("""CREATE TABLE IF NOT EXISTS tracker 
@@ -79,20 +88,21 @@ def int_convert(input):
 def draw_graph(sql_line):
     y = []
     x = []
-    current = ''
-    previous = ''
     sql_line += ' ORDER BY date'
+    plt.gca().xaxis
+    # plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=20))
     for line in cursor.execute(sql_line):
-        previous = current
-        current = line[1]
-        if current == previous:
-            x.append(line[2])
-            y.append(round((int(line[5])/int(line[4])), 2))
+        try:
+            if int(line[5]) != 0:
+                y.append(round((int(line[5])/int(line[4])), 2))
+                x.append(line[2])
+        except: pass
     
-    plt.xlabel("fuel ppl")
-    plt.ylabel("date")
+    plt.xlabel("date")
+    plt.ylabel("fuel ppl")
     plt.title('Fuel price over time')
     plt.plot(x, y)
+    plt.show()
 
 
 def print_tracker():
@@ -110,7 +120,6 @@ def print_tracker():
 
     if vehicle_input in vehicles:
         sql_fetch += 'WHERE vehicle = \'' + vehicle_input + '\''
-        draw_graph(sql_fetch)
 
     litres_total = 0
     cost_total = 0
@@ -126,7 +135,11 @@ def print_tracker():
 
     print('\nTracker contains:')
     for line in cursor.execute(sql_fetch):
-        try: fuel_price = round((int(line[5])/int(line[4])), 2)
+        if line[6] != 'GBP':
+            converted = c.convert(int(line[5]), line[6], 'GBP', date=datetime.strptime(line[2], '%Y-%m-%d'))
+        else:
+            converted = line[5]
+        try: fuel_price = round((int(converted)/int(line[4])), 2)
         except: fuel_price = 0
 
         veh_previous = veh_current
@@ -134,12 +147,27 @@ def print_tracker():
         mileage_previous = mileage_current
         mileage_current = int(line[3])
         mileage_diff = mileage_current - mileage_previous
+        cost_total += int(converted)
         litres_total += int(line[4])
-        cost_total += int(line[5])
         fuel_price_average += fuel_price
         lines += 1
 
-        if veh_current == veh_previous:
+        if line[6] != 'GBP':
+            gallons = int(line[4]) / 454.609
+            mpg = mileage_diff / gallons
+
+            print(str(line[0]) + '\t' + 
+                  str(line[1]) + '\t' + 
+                  str(line[2]) + '\t' + 
+                  str(line[3]) + '\t' + 
+                  str(round((line[4]/100), 2)) + '\t' + 
+                  str(round((converted/100), 2)) + '\t' + 
+                  'GBP' + '\t' + 
+                  str(fuel_price) + '\t' + 
+                  str(round(mpg, 2)) + '\t' +
+                  str(round((line[5]/100), 2)) + '\t' + 
+                  str(line[6]))
+        elif veh_current == veh_previous:
             gallons = int(line[4]) / 454.609
             mpg = mileage_diff / gallons
 
@@ -153,6 +181,7 @@ def print_tracker():
                   str(fuel_price) + '\t' + 
                   str(round(mpg, 2)))
         else:
+            cost_total += int(line[5])
             print(str(line[0]) + '\t' + 
                   str(line[1]) + '\t' + 
                   str(line[2]) + '\t' + 
@@ -167,7 +196,7 @@ def print_tracker():
     fuel_price_average = round((fuel_price_average / lines), 2)
 
     print('Total: \t\t\t\t\t' + str(litres_total) + '\t' + str(cost_total) + '\t\t' + str(fuel_price_average))
-
+    draw_graph(sql_fetch)
 
 
 def new_input_tracker():
