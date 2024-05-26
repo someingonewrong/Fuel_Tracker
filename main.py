@@ -2,14 +2,17 @@ import sqlite3
 import csv
 from datetime import date
 from datetime import datetime
+from datetime import timedelta
 import os.path as op
 from os import remove
 import glob
 import urllib.request
 from matplotlib import pyplot as plt
-import matplotlib.dates as mdates
-import numpy as np
+# import matplotlib.dates as mdates
+# import numpy as np
 from currency_converter import ECB_URL, CurrencyConverter
+import time
+import multiprocessing
 
 
 # check if vehicle valid
@@ -65,23 +68,45 @@ distinct_vehicles = []
 menu_running = True
 menu_option = ''
 
-def update_ecb_file():
-    filename = f"ecb_{date.today():%Y%m%d}.zip"
+def fetch_ecb_file(filename):
+    print('\nUpdating converter file...')
+    try:
+        urllib.request.urlretrieve(ECB_URL, filename)
+        print('File updated')
+    except: raise
 
-    if not op.isfile(filename):
-        file_names = glob.glob('ecb_*.zip', recursive=True)
-        for file in file_names:
-            remove(file)
-        print('\nUpdating converter file...')
+def update_ecb_file():
+    if date.today().weekday() in [0,1,2,3,4]:
+        temp = datetime.today()
+    elif date.today().weekday() == 5:
+        temp = datetime.today() - timedelta(days=1)
+    else:
+        temp = datetime.today() - timedelta(days=2)
+    temp = temp.strftime('%Y%m%d')
+    filename = "ecb_" + str(temp) + ".zip"
+    
+    try:
+        if not op.isfile(filename):
+            fetch_ecb_file(filename)
+    except:
+        print('Failed to update file')
+    
+    file_names = glob.glob('ecb_*.zip', recursive=True)
+    file_names.sort(reverse = True)
+
+    for file in file_names:
         try:
-            urllib.request.urlretrieve(ECB_URL, filename)
-            print('File updated')
+            c = CurrencyConverter(file, fallback_on_missing_rate=True)
+            print('Loaded file ' + file)
+            break
         except: pass
 
-    try: 
-        c = CurrencyConverter(filename, fallback_on_missing_rate=True)
-        return c
-    except: print('Currency Converter faild to download, Read Table will not work without')
+    for file_delete in file_names:
+        if file_delete != file:
+            remove(file_delete)
+    
+    return c
+
 
 def int_convert(input):
     input_split = input.split('.')
